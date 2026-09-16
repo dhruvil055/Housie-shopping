@@ -1,20 +1,20 @@
-import mongoose from 'mongoose';
+﻿import mongoose from 'mongoose';
 import { logger } from './logger.js';
 
+const DEFAULT_ATLAS_URI = 'mongodb+srv://dhruvilkyada483_db_user:LYk3gJyFMSFBJ0a2@housingshoppingcluster.lxws1me.mongodb.net/housie_production?retryWrites=true&w=majority&appName=HousingShoppingCluster';
+
 export const connectDB = async () => {
-  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || 'mongodb://localhost:27017/housie_db';
+  const mongoUri = process.env.MONGO_URI || process.env.MONGODB_URI || DEFAULT_ATLAS_URI;
   try {
     const conn = await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000,
+      serverSelectionTimeoutMS: 10000,
       autoIndex: true
     });
     logger.info(`MongoDB Connected successfully: ${conn.connection.host}`);
     return conn;
   } catch (error) {
     logger.error(`MongoDB connection error: ${error.message}`);
-    // Do not terminate process in development if Mongo is not running locally; allow mock/fallback or memory DB
-    if (process.env.NODE_ENV === 'production') {
-      process.exit(1);
-    }
+    // Non-blocking retry after delay to prevent container termination
+    setTimeout(connectDB, 5000);
   }
 };
