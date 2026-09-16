@@ -115,4 +115,8 @@ interface AdminApiService {
     // Reviews
     @GET("admin/reviews")
     suspend fun getReviews(): Response<ApiResponse<List<AdminReview>>>
+
+    @DELETE("admin/reviews/{id}")
+    suspend fun deleteReview(@Path("id") id: String): Response<ApiResponse<Boolean>>
 }
+

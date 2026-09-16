@@ -2,7 +2,9 @@ package com.housieshopping.admin.di
 
 import android.content.Context
 import androidx.room.Room
+import com.housieshopping.admin.BuildConfig
 import com.housieshopping.admin.core.network.AdminApiService
+import com.housieshopping.admin.core.network.AdminAuthInterceptor
 import com.housieshopping.admin.data.database.AdminDao
 import com.housieshopping.admin.data.database.AdminDatabase
 import com.housieshopping.admin.data.repository.AdminRepository
@@ -25,11 +27,14 @@ object AdminAppModule {
 
     @Provides
     @Singleton
-    fun provideOkHttpClient(): OkHttpClient {
+    fun provideOkHttpClient(
+        adminAuthInterceptor: AdminAuthInterceptor
+    ): OkHttpClient {
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = if (BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BODY else HttpLoggingInterceptor.Level.NONE
         }
         return OkHttpClient.Builder()
+            .addInterceptor(adminAuthInterceptor)
             .addInterceptor(loggingInterceptor)
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
@@ -40,7 +45,7 @@ object AdminAppModule {
     @Singleton
     fun provideAdminApiService(okHttpClient: OkHttpClient): AdminApiService {
         return Retrofit.Builder()
-            .baseUrl("https://api.housieshopping.com/api/v1/")
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
@@ -67,8 +72,10 @@ object AdminAppModule {
     @Provides
     @Singleton
     fun provideAdminRepository(
-        adminDao: AdminDao
+        adminDao: AdminDao,
+        adminApiService: AdminApiService
     ): AdminRepository {
-        return AdminRepositoryImpl(adminDao)
+        return AdminRepositoryImpl(adminDao, adminApiService)
     }
 }
+

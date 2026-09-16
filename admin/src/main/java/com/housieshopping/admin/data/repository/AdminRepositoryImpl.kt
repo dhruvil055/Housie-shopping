@@ -29,12 +29,23 @@ import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
+import android.util.Log
+import com.housieshopping.admin.core.network.AdminApiService
+import com.housieshopping.admin.core.network.OrderStatusUpdateRequest
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 @Singleton
 class AdminRepositoryImpl @Inject constructor(
-    private val adminDao: AdminDao
+    private val adminDao: AdminDao,
+    private val adminApiService: AdminApiService
 ) : AdminRepository {
 
+    private val repositoryScope = CoroutineScope(Dispatchers.IO)
+
     override fun getAllProducts(): Flow<List<AdminProduct>> {
+        syncProductsRemote()
         return adminDao.getAllProducts().map { entities ->
             entities.map {
                 AdminProduct(
@@ -53,6 +64,38 @@ class AdminRepositoryImpl @Inject constructor(
                     grade = it.grade,
                     unit = it.unit
                 )
+            }
+        }
+    }
+
+    private fun syncProductsRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getProducts()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { p ->
+                        adminDao.insertProduct(
+                            ProductEntity(
+                                id = p.id.ifEmpty { UUID.randomUUID().toString() },
+                                sku = p.sku,
+                                title = p.title,
+                                description = p.description,
+                                brand = p.brand,
+                                categoryName = p.categoryName,
+                                price = p.price,
+                                mrp = p.mrp,
+                                stock = p.stock,
+                                imageUrl = p.imageUrl,
+                                isActive = p.isActive,
+                                isFeatured = p.isFeatured,
+                                grade = p.grade,
+                                unit = p.unit
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Products remote sync skipped: ${e.message}")
             }
         }
     }
@@ -76,19 +119,67 @@ class AdminRepositoryImpl @Inject constructor(
         )
         adminDao.insertProduct(entity)
         logAction("PRODUCT_SAVED", "Saved product '${product.title}' (Price: ₹${product.price}, Stock: ${product.stock})")
+
+        repositoryScope.launch {
+            try {
+                if (product.id.isNotEmpty() && !product.id.startsWith("p10") && !product.id.contains("-")) {
+                    adminApiService.updateProduct(product.id, product)
+                } else {
+                    val res = adminApiService.createProduct(product)
+                    if (res.isSuccessful && res.body()?.data != null) {
+                        val created = res.body()!!.data!!
+                        adminDao.insertProduct(
+                            ProductEntity(
+                                id = created.id,
+                                sku = created.sku,
+                                title = created.title,
+                                description = created.description,
+                                brand = created.brand,
+                                categoryName = created.categoryName,
+                                price = created.price,
+                                mrp = created.mrp,
+                                stock = created.stock,
+                                imageUrl = created.imageUrl,
+                                isActive = created.isActive,
+                                isFeatured = created.isFeatured,
+                                grade = created.grade,
+                                unit = created.unit
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Product remote save deferred: ${e.message}")
+            }
+        }
     }
 
     override suspend fun deleteProduct(productId: String) {
         adminDao.deleteProduct(productId)
         logAction("PRODUCT_DELETED", "Deleted product ID $productId")
+        repositoryScope.launch {
+            try {
+                adminApiService.deleteProduct(productId)
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Remote delete product deferred: ${e.message}")
+            }
+        }
     }
 
     override suspend fun toggleStockStatus(productId: String, isActive: Boolean) {
         adminDao.updateStockStatus(productId, isActive)
         logAction("STOCK_TOGGLE", "Toggled stock state of product $productId to $isActive")
+        repositoryScope.launch {
+            try {
+                adminApiService.updateProduct(productId, AdminProduct(id = productId, title = "", description = "", brand = "", categoryName = "", price = 0.0, mrp = 0.0, stock = 0, imageUrl = "", isActive = isActive))
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Remote stock toggle deferred: ${e.message}")
+            }
+        }
     }
 
     override fun getAllCategories(): Flow<List<AdminCategory>> {
+        syncCategoriesRemote()
         return adminDao.getAllCategories().map { entities ->
             entities.map {
                 AdminCategory(
@@ -99,6 +190,30 @@ class AdminRepositoryImpl @Inject constructor(
                     productCount = it.productCount,
                     isActive = it.isActive
                 )
+            }
+        }
+    }
+
+    private fun syncCategoriesRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getCategories()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { cat ->
+                        adminDao.insertCategory(
+                            CategoryEntity(
+                                id = cat.id.ifEmpty { UUID.randomUUID().toString() },
+                                name = cat.name,
+                                description = cat.description,
+                                iconUrl = cat.iconUrl,
+                                productCount = cat.productCount,
+                                isActive = cat.isActive
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Categories remote sync skipped: ${e.message}")
             }
         }
     }
@@ -114,9 +229,17 @@ class AdminRepositoryImpl @Inject constructor(
         )
         adminDao.insertCategory(entity)
         logAction("CATEGORY_SAVED", "Saved category '${category.name}'")
+        repositoryScope.launch {
+            try {
+                adminApiService.createCategory(category)
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Category remote save deferred: ${e.message}")
+            }
+        }
     }
 
     override fun getAllOrders(): Flow<List<AdminOrder>> {
+        syncOrdersRemote()
         return adminDao.getAllOrders().map { entities ->
             entities.map {
                 AdminOrder(
@@ -138,6 +261,37 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun syncOrdersRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getOrders()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { o ->
+                        adminDao.insertOrder(
+                            OrderEntity(
+                                id = o.id.ifEmpty { UUID.randomUUID().toString() },
+                                customerName = o.customerName,
+                                customerPhone = o.customerPhone,
+                                customerEmail = o.customerEmail,
+                                deliveryAddress = o.deliveryAddress,
+                                itemsSummary = o.itemsSummary,
+                                totalAmount = o.totalAmount,
+                                paymentMode = o.paymentMode,
+                                paymentStatus = o.paymentStatus,
+                                orderStatus = o.orderStatus,
+                                timestamp = o.timestamp,
+                                trackingNumber = o.trackingNumber,
+                                logisticsPartner = o.logisticsPartner
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Orders remote sync skipped: ${e.message}")
+            }
+        }
+    }
+
     override suspend fun updateOrderStatus(
         orderId: String,
         status: String,
@@ -146,9 +300,17 @@ class AdminRepositoryImpl @Inject constructor(
     ) {
         adminDao.updateOrderStatus(orderId, status, trackingNumber, logisticsPartner)
         logAction("ORDER_STATUS_UPDATE", "Order $orderId updated to $status ($logisticsPartner, Tracking: $trackingNumber)")
+        repositoryScope.launch {
+            try {
+                adminApiService.updateOrderStatus(orderId, OrderStatusUpdateRequest(status, trackingNumber, logisticsPartner))
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Remote update order status deferred: ${e.message}")
+            }
+        }
     }
 
     override fun getAllCustomers(): Flow<List<AdminCustomer>> {
+        syncCustomersRemote()
         return adminDao.getAllCustomers().map { entities ->
             entities.map {
                 AdminCustomer(
@@ -165,12 +327,39 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun syncCustomersRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getCustomers()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { c ->
+                        adminDao.insertCustomer(
+                            CustomerEntity(
+                                id = c.id.ifEmpty { UUID.randomUUID().toString() },
+                                name = c.name,
+                                email = c.email,
+                                phone = c.phone,
+                                registrationDate = c.registrationDate,
+                                totalOrders = c.totalOrders,
+                                totalSpent = c.totalSpent,
+                                isActive = c.isActive
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Customers remote sync skipped: ${e.message}")
+            }
+        }
+    }
+
     override suspend fun toggleCustomerStatus(customerId: String, isActive: Boolean) {
         adminDao.toggleCustomerStatus(customerId, isActive)
         logAction("CUSTOMER_STATUS_TOGGLE", "Toggled customer $customerId status to $isActive")
     }
 
     override fun getAllCoupons(): Flow<List<AdminCoupon>> {
+        syncCouponsRemote()
         return adminDao.getAllCoupons().map { entities ->
             entities.map {
                 AdminCoupon(
@@ -182,6 +371,31 @@ class AdminRepositoryImpl @Inject constructor(
                     validUntil = it.validUntil,
                     isActive = it.isActive
                 )
+            }
+        }
+    }
+
+    private fun syncCouponsRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getCoupons()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { cp ->
+                        adminDao.insertCoupon(
+                            CouponEntity(
+                                id = cp.id.ifEmpty { UUID.randomUUID().toString() },
+                                code = cp.code,
+                                discountPercent = cp.discountPercent,
+                                maxDiscountAmount = cp.maxDiscountAmount,
+                                minOrderAmount = cp.minOrderAmount,
+                                validUntil = cp.validUntil,
+                                isActive = cp.isActive
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Coupons remote sync skipped: ${e.message}")
             }
         }
     }
@@ -198,6 +412,13 @@ class AdminRepositoryImpl @Inject constructor(
         )
         adminDao.insertCoupon(entity)
         logAction("COUPON_SAVED", "Saved coupon promo code ${coupon.code}")
+        repositoryScope.launch {
+            try {
+                adminApiService.createCoupon(coupon)
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Coupon remote save deferred: ${e.message}")
+            }
+        }
     }
 
     override suspend fun toggleCoupon(couponId: String, isActive: Boolean) {
@@ -206,6 +427,7 @@ class AdminRepositoryImpl @Inject constructor(
     }
 
     override fun getAllBanners(): Flow<List<AdminBanner>> {
+        syncBannersRemote()
         return adminDao.getAllBanners().map { entities ->
             entities.map {
                 AdminBanner(
@@ -216,6 +438,30 @@ class AdminRepositoryImpl @Inject constructor(
                     categoryTarget = it.categoryTarget,
                     isActive = it.isActive
                 )
+            }
+        }
+    }
+
+    private fun syncBannersRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getBanners()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { b ->
+                        adminDao.insertBanner(
+                            BannerEntity(
+                                id = b.id.ifEmpty { UUID.randomUUID().toString() },
+                                title = b.title,
+                                subtitle = b.subtitle,
+                                imageUrl = b.imageUrl,
+                                categoryTarget = b.categoryTarget,
+                                isActive = b.isActive
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Banners remote sync skipped: ${e.message}")
             }
         }
     }
@@ -231,6 +477,13 @@ class AdminRepositoryImpl @Inject constructor(
         )
         adminDao.insertBanner(entity)
         logAction("BANNER_SAVED", "Saved promotion banner: ${banner.title}")
+        repositoryScope.launch {
+            try {
+                adminApiService.createBanner(banner)
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Banner remote save deferred: ${e.message}")
+            }
+        }
     }
 
     override suspend fun deleteBanner(bannerId: String) {
@@ -239,6 +492,7 @@ class AdminRepositoryImpl @Inject constructor(
     }
 
     override fun getAllReviews(): Flow<List<AdminReview>> {
+        syncReviewsRemote()
         return adminDao.getAllReviews().map { entities ->
             entities.map {
                 AdminReview(
@@ -254,9 +508,41 @@ class AdminRepositoryImpl @Inject constructor(
         }
     }
 
+    private fun syncReviewsRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getReviews()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { r ->
+                        adminDao.insertReview(
+                            ReviewEntity(
+                                id = r.id.ifEmpty { UUID.randomUUID().toString() },
+                                productName = r.productName,
+                                customerName = r.customerName,
+                                rating = r.rating,
+                                comment = r.comment,
+                                date = r.date,
+                                isApproved = r.isApproved
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Reviews remote sync skipped: ${e.message}")
+            }
+        }
+    }
+
     override suspend fun deleteReview(reviewId: String) {
         adminDao.deleteReview(reviewId)
         logAction("REVIEW_DELETED", "Deleted review $reviewId")
+        repositoryScope.launch {
+            try {
+                adminApiService.deleteReview(reviewId)
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Remote delete review deferred: ${e.message}")
+            }
+        }
     }
 
     override fun getAllAuditLogs(): Flow<List<AuditLog>> {
@@ -286,6 +572,7 @@ class AdminRepositoryImpl @Inject constructor(
     }
 
     override fun getAllSupportTickets(): Flow<List<AdminSupportTicket>> {
+        syncTicketsRemote()
         return adminDao.getAllSupportTickets().map { entities ->
             entities.map {
                 AdminSupportTicket(
@@ -298,6 +585,32 @@ class AdminRepositoryImpl @Inject constructor(
                     date = it.date,
                     adminNotes = it.adminNotes
                 )
+            }
+        }
+    }
+
+    private fun syncTicketsRemote() {
+        repositoryScope.launch {
+            try {
+                val res = adminApiService.getSupportTickets()
+                if (res.isSuccessful && res.body()?.data != null) {
+                    res.body()!!.data!!.forEach { t ->
+                        adminDao.insertTicket(
+                            TicketEntity(
+                                id = t.id.ifEmpty { UUID.randomUUID().toString() },
+                                customerName = t.customerName,
+                                phone = t.phone,
+                                subject = t.subject,
+                                description = t.description,
+                                status = t.status,
+                                date = t.date,
+                                adminNotes = t.adminNotes
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Log.d("AdminRepo", "Tickets remote sync skipped: ${e.message}")
             }
         }
     }

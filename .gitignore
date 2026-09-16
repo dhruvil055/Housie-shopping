@@ -13,3 +13,16 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Node.js & Backend
+node_modules/
+.env
+.env.local
+.env.production
+*.log
+
+# Build artifacts
+*.apk
+*.aab
+window_dump.xml
+

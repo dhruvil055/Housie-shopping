@@ -22,7 +22,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "BASE_URL", "\"https://api.housieshopping.com/api/v1/\"")
+        buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:5000/api/v1/\"")
     }
 
     buildTypes {
@@ -95,9 +95,14 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // DataStore Preferences
+    // DataStore Preferences & Security Crypto (Keystore)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Serialization
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.2")
+
+    // Testing
+    testImplementation("junit:junit:4.13.2")
 }
+

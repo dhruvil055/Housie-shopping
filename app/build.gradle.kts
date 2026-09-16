@@ -22,7 +22,7 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "BASE_URL", "\"https://api.housieshopping.com/api/v1/\"")
+        buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:5000/api/v1/\"")
         buildConfigField("String", "RAZORPAY_KEY", "\"rzp_test_placeholder\"")
         manifestPlaceholders["MAPS_API_KEY"] = "AIzaSyPlaceholderKeyForGoogleMaps"
     }
@@ -101,8 +101,9 @@ dependencies {
     // Image Loading - Coil
     implementation("io.coil-kt:coil-compose:2.5.0")
 
-    // DataStore (Preferences)
+    // DataStore (Preferences) & Security Crypto (Keystore)
     implementation("androidx.datastore:datastore-preferences:1.0.0")
+    implementation("androidx.security:security-crypto:1.1.0-alpha06")
 
     // Location & Maps
     implementation("com.google.android.gms:play-services-location:21.1.0")

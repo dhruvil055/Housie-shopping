@@ -2,6 +2,8 @@ package com.housieshopping.admin.presentation.auth
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.housieshopping.admin.core.network.AdminApiService
+import com.housieshopping.admin.core.network.AdminLoginRequest
 import com.housieshopping.admin.data.preferences.AdminPreferences
 import com.housieshopping.admin.data.repository.AdminRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,7 +24,8 @@ data class AdminLoginUiState(
 @HiltViewModel
 class AdminLoginViewModel @Inject constructor(
     private val adminPreferences: AdminPreferences,
-    private val adminRepository: AdminRepository
+    private val adminRepository: AdminRepository,
+    private val adminApiService: AdminApiService
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(AdminLoginUiState())
@@ -47,7 +50,6 @@ class AdminLoginViewModel @Inject constructor(
 
     fun authenticate() {
         viewModelScope.launch {
-            val savedPin = adminPreferences.adminPin.first()
             val enteredPin = _uiState.value.pinInput.trim()
 
             if (enteredPin.isEmpty()) {
@@ -55,19 +57,50 @@ class AdminLoginViewModel @Inject constructor(
                 return@launch
             }
 
+            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+
+            // 1. Try remote API authentication first
+            try {
+                val response = adminApiService.loginAdmin(
+                    AdminLoginRequest(
+                        email = "admin@housieshopping.com",
+                        pin = enteredPin
+                    )
+                )
+
+                if (response.isSuccessful && response.body()?.success == true) {
+                    val body = response.body()!!
+                    adminPreferences.setLoggedIn(
+                        isLoggedIn = true,
+                        name = body.adminName,
+                        email = "admin@housieshopping.com",
+                        token = body.token
+                    )
+                    adminRepository.logAction("ADMIN_LOGIN", "Admin authenticated via cloud API")
+                    _uiState.value = _uiState.value.copy(isLoading = false, isAuthenticated = true, error = null)
+                    return@launch
+                }
+            } catch (e: Exception) {
+                // Offline fallback - server unreachable or local sandbox
+            }
+
+            // 2. Offline fallback PIN verification
+            val savedPin = adminPreferences.adminPin.first()
             if (enteredPin == savedPin || enteredPin == "1234") {
-                adminPreferences.setLoggedIn(true)
-                adminRepository.logAction("ADMIN_LOGIN", "Successful admin session login")
-                _uiState.value = _uiState.value.copy(isAuthenticated = true, error = null)
+                adminPreferences.setLoggedIn(isLoggedIn = true)
+                adminRepository.logAction("ADMIN_LOGIN", "Admin authenticated via local secure PIN")
+                _uiState.value = _uiState.value.copy(isLoading = false, isAuthenticated = true, error = null)
             } else {
                 val attempts = _uiState.value.attemptsLeft - 1
                 if (attempts <= 0) {
                     _uiState.value = _uiState.value.copy(
+                        isLoading = false,
                         error = "Account locked for 5 minutes due to too many failed attempts.",
                         attemptsLeft = 0
                     )
                 } else {
                     _uiState.value = _uiState.value.copy(
+                        isLoading = false,
                         error = "Invalid Admin PIN. $attempts attempts remaining.",
                         attemptsLeft = attempts
                     )
