@@ -26,3 +26,8 @@ node_modules/
 *.aab
 window_dump.xml
 
+# Keystore & Signing Secrets
+*.jks
+*.keystore
+keystore.properties
+

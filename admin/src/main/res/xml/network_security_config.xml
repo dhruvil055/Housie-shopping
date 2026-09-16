@@ -1,12 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- By default, enforce TLS/HTTPS everywhere -->
+    <!-- Base Configuration: Enforce TLS/HTTPS everywhere; trust only system CAs in release -->
     <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!-- Debug Overrides: Active ONLY in debuggable builds for local development -->
+    <debug-overrides>
         <trust-anchors>
             <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </base-config>
+    </debug-overrides>
 
     <!-- Allow cleartext traffic only for local development servers and emulator loopbacks -->
     <domain-config cleartextTrafficPermitted="true">

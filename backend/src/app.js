@@ -14,6 +14,9 @@ import cartRoutes from './routes/cart.js';
 import wishlistRoutes from './routes/wishlist.js';
 import orderRoutes from './routes/orders.js';
 import adminRoutes from './routes/admin.js';
+import inventoryRoutes from './routes/inventory.js';
+import notificationRoutes from './routes/notifications.js';
+import paymentRoutes from './routes/payments.js';
 
 export const createApp = () => {
   const app = express();
@@ -61,6 +64,9 @@ export const createApp = () => {
   app.use('/api/v1/wishlist', wishlistRoutes);
   app.use('/api/v1/orders', orderRoutes);
   app.use('/api/v1/admin', adminRoutes);
+  app.use('/api/v1/inventory', inventoryRoutes);
+  app.use('/api/v1/notifications', notificationRoutes);
+  app.use('/api/v1/payments', paymentRoutes);
 
   // 404 Handler
   app.use((req, res, next) => {

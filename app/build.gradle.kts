@@ -1,9 +1,18 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.dagger.hilt.android")
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
 }
 
 android {
@@ -22,19 +31,71 @@ android {
             useSupportLibrary = true
         }
 
-        buildConfigField("String", "BASE_URL", "\"http://127.0.0.1:5000/api/v1/\"")
-        buildConfigField("String", "RAZORPAY_KEY", "\"rzp_test_placeholder\"")
         manifestPlaceholders["MAPS_API_KEY"] = "AIzaSyPlaceholderKeyForGoogleMaps"
     }
 
+    signingConfigs {
+        create("release") {
+            val configuredStoreFile = keystoreProperties.getProperty("storeFile")
+            val keystoreFile = if (!configuredStoreFile.isNullOrBlank()) {
+                val direct = file(configuredStoreFile)
+                if (direct.exists()) direct else rootProject.file("housie-release.keystore")
+            } else {
+                rootProject.file("housie-release.keystore")
+            }
+
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = keystoreProperties.getProperty("storePassword")
+                    ?: System.getenv("HOUSIE_KEYSTORE_PASSWORD")
+                    ?: "HousieShopping2026SecureKey"
+                keyAlias = keystoreProperties.getProperty("keyAlias")
+                    ?: System.getenv("HOUSIE_KEY_ALIAS")
+                    ?: "housieshopping"
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                    ?: System.getenv("HOUSIE_KEY_PASSWORD")
+                    ?: "HousieShopping2026SecureKey"
+            } else {
+                // Fallback to debug keystore if no release keystore present
+                val debugConfig = signingConfigs.getByName("debug")
+                storeFile = debugConfig.storeFile
+                storePassword = debugConfig.storePassword
+                keyAlias = debugConfig.keyAlias
+                keyPassword = debugConfig.keyPassword
+            }
+        }
+    }
+
     buildTypes {
-        release {
+        debug {
+            isDebuggable = true
             isMinifyEnabled = false
+            buildConfigField("String", "ENVIRONMENT", "\"debug\"")
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:5000/api/v1/\"")
+            buildConfigField("String", "RAZORPAY_KEY", "\"rzp_test_placeholder\"")
             signingConfig = signingConfigs.getByName("debug")
+        }
+
+        create("staging") {
+            initWith(getByName("release"))
+            matchingFallbacks += listOf("release")
+            buildConfigField("String", "ENVIRONMENT", "\"staging\"")
+            buildConfigField("String", "BASE_URL", "\"https://staging-api.housieshopping.com/api/v1/\"")
+            buildConfigField("String", "RAZORPAY_KEY", "\"rzp_test_placeholder\"")
+            signingConfig = signingConfigs.getByName("release")
+        }
+
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("String", "ENVIRONMENT", "\"production\"")
+            buildConfigField("String", "BASE_URL", "\"https://api.housieshopping.com/api/v1/\"")
+            buildConfigField("String", "RAZORPAY_KEY", "\"rzp_live_placeholder\"")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

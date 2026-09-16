@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <full-backup-content>
     <include domain="sharedpref" path="."/>
+    <!-- Exclude Keystore-backed encrypted preferences to avoid AEADBadTagException on new device restore -->
+    <exclude domain="sharedpref" path="housie_encrypted_prefs.xml"/>
 </full-backup-content>
