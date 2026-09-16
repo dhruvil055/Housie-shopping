@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Dark Navy Circle Background -->
+    <path
+        android:fillColor="#0D1B2A"
+        android:pathData="M60,0 C93.14,0 120,26.86 120,60 C120,93.14 93.14,120 60,120 C26.86,120 0,93.14 0,60 C0,26.86 26.86,0 60,0 Z" />
+
+    <!-- Gold Accent Ring -->
+    <path
+        android:fillColor="#F77F00"
+        android:pathData="M60,6 C89.82,6 114,30.18 114,60 C114,89.82 89.82,114 60,114 C30.18,114 6,89.82 6,60 C6,30.18 30.18,6 60,6 Z"
+        android:alpha="0.3" />
+
+    <!-- Building / Admin Roof -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M60,26 L28,50 L34,50 L60,30.5 L86,50 L92,50 Z" />
+
+    <!-- Admin Gear Icon inside House -->
+    <path
+        android:fillColor="#F77F00"
+        android:pathData="M60,54 C55.58,54 52,57.58 52,62 C52,66.42 55.58,70 60,70 C64.42,70 68,66.42 68,62 C68,57.58 64.42,54 60,54 Z M60,66 C57.79,66 56,64.21 56,62 C56,59.79 57.79,58 60,58 C62.21,58 64,59.79 64,62 C64,64.21 62.21,66 60,66 Z" />
+
+    <!-- Gear Teeth -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M58,48 L62,48 L62,52 L58,52 Z M58,72 L62,72 L62,76 L58,76 Z M46,60 L46,64 L50,64 L50,60 Z M70,60 L70,64 L74,64 L74,60 Z" />
+
+    <!-- Wrench Bar -->
+    <path
+        android:fillColor="#E0E1DD"
+        android:pathData="M40,84 L80,84 L76,88 L44,88 Z" />
+</vector>

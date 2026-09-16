@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- House Roof Silhouette -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,24 L24,46 L30,46 L54,28.5 L78,46 L84,46 Z" />
+
+    <!-- Chimney -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M70,32 L70,26 L75,26 L75,36 Z" />
+
+    <!-- Shopping Cart Frame -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M34,48 L74,48 L68,70 L40,70 Z" />
+
+    <!-- Cart Handle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M32,48 C30,48 28,46 28,44 L28,42 L32,42 L32,44 L34,48 Z" />
+
+    <!-- Wheels -->
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M43,76 C41.34,76 40,74.66 40,73 C40,71.34 41.34,70 43,70 C44.66,70 46,71.34 46,73 C46,74.66 44.66,76 43,76 Z" />
+    <path
+        android:fillColor="#FFD54F"
+        android:pathData="M65,76 C63.34,76 62,74.66 62,73 C62,71.34 63.34,70 65,70 C66.66,70 68,71.34 68,73 C68,74.66 66.66,76 65,76 Z" />
+
+    <!-- Stylized 'H' for Housie -->
+    <path
+        android:fillColor="#E65100"
+        android:pathData="M46,53 L50,53 L51,53 L51,57 L57,57 L57,53 L62,53 L62,65 L57,65 L57,60.5 L51,60.5 L51,65 L46,65 Z" />
+
+</vector>
